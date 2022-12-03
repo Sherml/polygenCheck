@@ -20,16 +20,38 @@ struct Segment
 	Point p1, p2;
 }Segment1, Segment2;
 
-/**
- * @brief 发出射线
- * 
- * @param polygon 传入一个多边形
- * @param pt 	  传入一个点
- * @return int 	  表示其位置关系
- * @retval 1 	  在边上
- * @retval 2	  在外面
- * @retval 3      在内部
- */
+bool Exclusion(Point p1,Point p2,Point q1, Point q2)//快速排斥
+{
+	bool s = min(p1.x, p2.x) <= max(q1.x, q2.x) && min(q1.x, q2.x) <= max(p1.x, p2.x) &&
+		min(p1.y, p2.y) <= max(q1.y, q2.y) && min(q1.y, q2.y) <= max(p1.y, p2.y);
+	return s;
+}
+
+double mult(Point p0, Point p1, Point p2)  //叉积计算,p0为公用节点
+{
+	return (p0.x - p1.x) * (p0.y - p2.y) - (p0.y - p1.y) * (p0.x - p2.x);
+}
+
+bool Cross(Point& p1, Point& p2, Point& q1, Point& q2)//跨立实验
+{
+	if (mult(q1, p1, q2) * mult(q1, q2, p2) <= 0) return false;
+	if (mult(p1, q1, p2) * mult(p1, p2, q2) <= 0) return false;
+	return true;
+}
+
+int Location(Segment &s1, Segment &s2)
+{
+	if (Exclusion(s1.p1,s1.p2,s2.p1,s2.p2))
+	{
+		if (Cross(s1.p1,s1.p2,s2.p1,s2.p2)==1)//通过跨立，代表有正常交点了
+		{
+			return 4;//有非顶点的交点必相交
+		}
+		//除了跨立相交情况，还会有相离相含，以及奇怪的相交
+	}
+	return 0;
+}
+
 int Ray(const vector <Point>& polygon, Point pt) //射线法 1在边上，2在外面，3在里面
 {
 	int Num = polygon.size();
@@ -59,14 +81,14 @@ int Ray(const vector <Point>& polygon, Point pt) //射线法 1在边上，2在�
 					while (polygon[c].y == pt.y)
 					{
 						c--;
-						c = (c + Num - 1) % Num;
+						c = (c + Num) % Num;
 					}
 					if (polygon[c].y > 0) e = 1;
 					else e = -1;
 					while (polygon[d].y == pt.y)
 					{
 						d++;
-						d = (d + 1) % Num;
+						d = d % Num;
 					}
 					if (polygon[d].y > 0) f = 1;
 					else f = -1;
@@ -98,7 +120,7 @@ void Pointtype(const vector<Point>& polygon1, const vector<Point>& polygon2, vec
 		num1.push_back(Ray(polygon2, polygon1[i]));
 	}
 }
-//0相交，1重合，2在外面，3在里面
+//判断线段和多边形关系,0相交，1重合，2在外面，3在里面
 void Segmenttype(const vector<Point>& polygon1, const vector <Point>& polygon2, vector <int>& num1, vector <int>& num2)
 {
 	Pointtype(polygon1, polygon2, num1);
@@ -112,11 +134,11 @@ void Segmenttype(const vector<Point>& polygon1, const vector <Point>& polygon2, 
 		{
 			num2.push_back(0);
 		}
-		if ((p == 1 || p == 2) && q == 2 || ((q == 1 || q == 2 ) && p == 2))
+		if (((p == 1 || p == 2) && q == 2 ) || ((q == 1 || q == 2 ) && p == 2))
 		{
 			num2.push_back(2);
 		}
-		if ((p == 1 || p == 3) && q == 3 || ((q == 1 || q == 3 ) && p == 3))
+		if (((p == 1 || p == 3) && q == 3 ) || ((q == 1 || q == 3) && p == 3))
 		{
 			num2.push_back(3);
 		}
@@ -165,18 +187,39 @@ int last(int num1, int num2)
 {
 	if (num1 == 4 || num2 == 4) return 4;
 	if (num1 == 1 && num2 == 1) return 5;
+	if (num1 == 1 && num2 == 2) return 1;
+	if (num1 == 1 && num2 == 3) return 2;
+	if (num2 == 1 && num1 == 2) return 2;
+	if (num2 == 1 && num1 == 3) return 1;
+	if (num1 == 2 && num2 == 2) return 3;
 	if (num1 == 2 && num2 == 3) return 2;
 	if (num1 == 3 && num2 == 2) return 1;
-	if (num1 == 2 && num2 == 2) return 3;
-
+	if (num1 == 3 && num2 == 3) return 4;
 }
 
 int func(const vector<Point>& polygon1, const vector<Point>& polygon2)
 {
+	int i,j,o,m;
+	for (i = 0; i < polygon1.size(); i++)
+	{
+		Segment1.p1 = polygon1[i];
+		Segment1.p2 = polygon1[(i + 1)%polygon1.size()];
+		for (j = 0; j < polygon2.size(); j++)
+		{
+			Segment2.p1 = polygon2[j];
+			Segment2.p2 = polygon2[(j + 1)%polygon2.size()];	
+
+			o=Location(Segment1,Segment2);
+			if (o == 4)
+			{
+				return 4;
+			}
+		}	
+	}
 	vector <int> num11, num12, num21, num22;
-	int i = Circletype(polygon1, polygon2, num11, num12);
-	int j = Circletype(polygon2, polygon1, num21, num22);
-	int o = last(i, j);
+	i = Circletype(polygon1, polygon2, num11, num12);
+	j = Circletype(polygon2, polygon1, num21, num22);
+	o = last(i, j);
 	return o;
 }
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
@@ -192,8 +235,8 @@ TEST_CASE("testing Polygon") {
     CHECK( func(polygon2,  polygon1)  == 1) ;
 
     polygon2 = {{10, 0}, {20, 0}, {20, 30} };
- //   CHECK( func(polygon1,  polygon2)  == 2) ;
- //   CHECK( func(polygon2,  polygon1)  == 1) ;
+    CHECK( func(polygon1,  polygon2)  == 2) ;
+    CHECK( func(polygon2,  polygon1)  == 1) ;
 
 
     polygon2 = {{80, 0}, {100, 20}, {50, 50} };
@@ -202,18 +245,18 @@ TEST_CASE("testing Polygon") {
 
 
     polygon2 = {{0, 50}, {50, 100}, {100, 50}, {50, 0} };
-  //  CHECK( func(polygon1,  polygon2)  == 2) ;
- //   CHECK( func(polygon2,  polygon1)  == 1) ;
+    CHECK( func(polygon1,  polygon2)  == 2) ;
+    CHECK( func(polygon2,  polygon1)  == 1) ;
 
 
     polygon2 = {{0, 0},   {100, 0}, {100, 100},   {0, 100} , {0, 60}, {10, 60}, {10, 50}, {0, 50}};
-  //  CHECK( func(polygon1,  polygon2)  == 2) ;
-  //  CHECK( func(polygon2,  polygon1)  == 1) ;
+   CHECK( func(polygon1,  polygon2)  == 2) ;
+   CHECK( func(polygon2,  polygon1)  == 1) ;
 
 
     polygon2 = {{0, 0},   {100, 0}, {100, 100},   {0, 100} , {0, 60}, {10, 10}, {0, 50}};
-  //  CHECK( func(polygon1,  polygon2)  == 2) ;
-  //  CHECK( func(polygon2,  polygon1)  == 1) ;
+    CHECK( func(polygon1,  polygon2)  == 2) ;
+    CHECK( func(polygon2,  polygon1)  == 1) ;
 
 
     polygon2 = {{0, 0}, {100, 0}, {100, 10}, {0, 10} };
@@ -255,13 +298,13 @@ TEST_CASE("testing Polygon") {
     CHECK( func(polygon2,  polygon1)  == 3) ;
 
     polygon2 = {{100, 0}, {0, 0}, {0, 100}, {-10, -10} };
- //   CHECK( func(polygon1,  polygon2)  == 3) ;
- //   CHECK( func(polygon2,  polygon1)  == 3) ;
+    CHECK( func(polygon1,  polygon2)  == 3) ;
+    CHECK( func(polygon2,  polygon1)  == 3) ;
 
 
     polygon2 = {{100, 0}, {0, 0}, {0, 100}, {-10, -10} };
- //   CHECK( func(polygon1,  polygon2)  == 3) ;
- //   CHECK( func(polygon2,  polygon1)  == 3) ;
+    CHECK( func(polygon1,  polygon2)  == 3) ;
+    CHECK( func(polygon2,  polygon1)  == 3) ;
 
     polygon2 = {{0, 100}, {0, 0}, {100, 0}, {100, 100}, {120, 100}, {120, -10}, {-10, -10}, {-10, 100}};
     CHECK( func(polygon1,  polygon2)  == 3) ;
@@ -286,8 +329,8 @@ TEST_CASE("testing Polygon") {
 
     polygon2 = {{0, 100}, {0, 0}, {100, 0}, {100, 100}, {100, 110}, {120, 110}, {120, -10},
                 {-10, -10}, {-10, 140}, {120, 140}, {120, 130}, {0, 130}};
-    //CHECK( func(polygon1,  polygon2)  == 3) ;
-    //CHECK( func(polygon2,  polygon1)  == 3) ;
+    CHECK( func(polygon1,  polygon2)  == 3) ;
+    CHECK( func(polygon2,  polygon1)  == 3) ;
 
     polygon2 = {{-10, -10}, {-10, 110}, {110, 110}, {110, -20}, {-40, -20}, {-40, 90}, {-50, 90},
                 {-50, -60}, {120, -60}, {120, 140}, {-15, 140}, {-15, -10}};
@@ -307,8 +350,8 @@ TEST_CASE("testing Polygon") {
     CHECK( func(polygon2,  polygon1)  == 4) ;
 
     polygon2 = {{-5, 50}, {50, 105}, {105, 50}, {50, -5} };
-  //  CHECK( func(polygon1,  polygon2)  == 4) ;
-  //  CHECK( func(polygon2,  polygon1)  == 4) ;
+    CHECK( func(polygon1,  polygon2)  == 4) ;
+    CHECK( func(polygon2,  polygon1)  == 4) ;
 
     polygon2 = {{0, 50}, {100, 50}, {100, -20}, {0, -20} };
     CHECK( func(polygon1,  polygon2)  == 4) ;
