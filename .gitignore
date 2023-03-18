@@ -1,0 +1,4 @@
+*.exe
+/polygen_check/Debug
+/polygen_check/.vs
+Debug
